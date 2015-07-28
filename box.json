@@ -1,0 +1,8 @@
+{
+    "directories" : ["src", "vendor"],
+    "files" : ["composer.json"],
+    "main": "migrate.php",
+    "output": "trac-to-gitlab.phar",
+    "stub" : true,
+    "intercept" : true
+}
