@@ -109,6 +109,17 @@ class Migration
 			$issue = $this->gitLab->createIssue($gitLabProject, $title, $description, $assigneeId, $creatorId, $labels);
 
 			echo 'Created a GitLab issue #' . $issue['iid'] . ' for Trac ticket #' . $originalTicketId . ' : ' . $this->gitLab->getUrl() . '/' . $gitLabProject . '/issues/' . $issue['iid'] . "\n";
+
+			// If there are comments on the ticket, create notes on the issue
+			if (is_array($ticket[4]) && count($ticket[4])) {
+				foreach($ticket[4] as $comment) {
+					$commentAuthor = $this->getGitLabUser($comment['author']);
+					$commentAuthorId = is_array($commentAuthor) ? $commentAuthor['id'] : null;
+					$commentText = $this->translateTracToMarkdown($comment['text']);
+					$note = $this->gitLab->createNote($gitLabProject, $issue['id'], $commentText, $commentAuthorId);
+				}
+				echo "\tAlso created " . count($ticket[4]) . " note(s)\n";
+			}
 		}
 	}
 

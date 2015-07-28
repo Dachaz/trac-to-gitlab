@@ -1,6 +1,6 @@
 {
     "name": "dachaz/trac-to-gitlab",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "CLI utility",
     "description": "Command line utility to migrate Trac tickets to GitLab issues",
     "homepage": "https://github.com/Dachaz/trac-to-gitlab",

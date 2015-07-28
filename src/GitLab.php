@@ -84,6 +84,31 @@ class GitLab
 		return $issue;
 	}
 
+	/**
+	 * Creates a new note in the given project and on the given issue id (NOTE: id, not iid). When working in admin mode, tries to create the note
+	 * as the given author (SUDO) and if that fails, tries creating the note again as the admin.
+	 * @param  mixed    $projectId    Numeric project id (e.g. 17) or the unique string identifier (e.g. 'dachaz/trac-to-gitlab')
+     * @param  int      $issueId      Unique identifier of the issue
+     * @param  string   $text         Text of the note
+     * @param  int      $authorId     Numeric user id of the user who created the issue. Only used in admin mode. Can be null.
+     * @return  Gitlab\Model\Note
+	 */
+	public function createNote($projectId, $issueId, $text, $authorId) {
+		try {
+			// Try to add, potentially as an admin (SUDO authorId)
+			$note = $this->doCreateNote($projectId, $issueId, $text, $authorId, $this->isAdmin);
+		} catch (\Gitlab\Exception\RuntimeException $e) {
+			// If adding has failed because of SUDO (author does not have access to the project), create an issue without SUDO (as the Admin user whose token is configured)
+			if ($this->isAdmin) {
+				$note = $this->doCreateNote($projectId, $issueId, $text, $authorId, false);
+			} else {
+				// If adding has failed for some other reason, propagate the exception back
+				throw $e;
+			}
+		}
+		return $note;
+	}
+
 	// Actually creates the issue
 	private function doCreateIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, $isAdmin) {
 		$issueProperties = array(
@@ -96,6 +121,17 @@ class GitLab
 			$issueProperties['sudo'] = $authorId;
 		}
 		return $this->client->api('issues')->create($projectId, $issueProperties);
+	}
+
+	// Actually creates the note
+	private function doCreateNote($projectId, $issueId, $text, $authorId, $isAdmin) {
+		$noteProperties = array(
+			'body' => $text
+		);
+		if ($isAdmin) {
+			$noteProperties['sudo'] = $authorId;
+		}
+		return $this->client->api('issues')->addComment($projectId, $issueId, $noteProperties);
 	}
 
 	/**

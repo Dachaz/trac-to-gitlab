@@ -1,0 +1,5 @@
+1.0.1
+	- Added support for migrating comments on tickets
+
+1.0.0
+	- Initial release
