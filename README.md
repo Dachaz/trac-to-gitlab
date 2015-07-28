@@ -52,6 +52,7 @@ mv trac-to-gitlab.phar trac-to-gitlab
 
 ```bash
 git clone https://github.com/Dachaz/trac-to-gitlab.git
+composer install
 php migrate.php
 ```
 
