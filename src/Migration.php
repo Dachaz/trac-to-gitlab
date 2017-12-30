@@ -9,7 +9,7 @@ namespace Trac2GitLab;
  */
 class Migration
 {
-		// Communicators
+	// Communicators
 	private $gitLab;
 	private $trac;
 	// Configuration
@@ -40,7 +40,7 @@ class Migration
 		$this->userMapping = $userMapping;
 		$this->labelcomponent = $labelcomponent;
         $this->labelmilestone = $labelmilestone;
-        $this->addlabel = $addlabel;
+        $this->addlabel = trim($addlabel);
         $this->maxtickets = $maxtickets;
         $this->showonly = $showonly;
 	}
@@ -121,16 +121,16 @@ class Migration
 			$assigneeId = is_array($gitLabAssignee) ? $gitLabAssignee['id'] : null;
 			$creatorId = is_array($gitLabCreator) ? $gitLabCreator['id'] : null;
 			$labels = $ticket[3]['keywords'];
-			if ($this->labelcomponent) {
+			if ($this->labelcomponent && isset($ticket[3]['component']) && !empty($ticket[3]['component'])) {
 				$labels .= (strlen($labels)?",":"") . $ticket[3]['component'];
 			}
-			if ($this->labelmilestone) {
+			if ($this->labelmilestone && isset($ticket[3]['milestone']) && !empty($ticket[3]['milestone'])) {
 				$labels .= (strlen($labels)?",":"") . $ticket[3]['milestone'];
 			}
-			if ($this->addlabel) {
+			if ($this->addlabel && !empty($this->addlabel)) {
 				$labels .= (strlen($labels)?",":"") . $this->addlabel;
 			}
-            
+
             $created_at = false;
             if(isset($ticket[3]['time']) && isset($ticket[3]['time']['__jsonclass__']) && isset($ticket[3]['time']['__jsonclass__'][1])) {
                 $created_at = $ticket[3]['time']['__jsonclass__'][1];
