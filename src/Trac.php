@@ -31,8 +31,8 @@ class Trac
      * @param  string    $component   Name of the component.
      * @return  array
      */
-	public function listOpenTicketsForComponent($component) {
-		return $this->listTicketsForQuery("component=$component&status=!closed&max=0");
+	public function listOpenTicketsForComponent($component, $max=0) {
+		return $this->listTicketsForQuery("component=$component&status=!closed&max={$max}");
 	}
 
 	/**
@@ -93,4 +93,3 @@ class Trac
 		return $this->url;
 	}
 }
-?>

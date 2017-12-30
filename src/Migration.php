@@ -15,6 +15,11 @@ class Migration
 	// Configuration
 	private $addLinkToOriginalTicket;
 	private $userMapping;
+	private $labelcomponent;
+    private $labelmilestone;
+    private $addlabel;
+    private $maxtickets;
+    private $showonly;
 	// Cache
 	private $gitLabUsers;
     
@@ -28,11 +33,16 @@ class Migration
      * @param  boolean   $addLinkToOriginalTicket   Whether a link to the Trac ticket should be added at the end of the GitLab issue
      * @param  array     $userMapping               A map of {tracUsername => gitLabUsername}
      */
-	public function __construct($gitLabUrl, $gitLabToken, $gitLabTokenIsAdmin, $tracUrl, $addLinkToOriginalTicket, $userMapping) {
+	public function __construct($gitLabUrl, $gitLabToken, $gitLabTokenIsAdmin, $tracUrl, $addLinkToOriginalTicket, $userMapping, $labelcomponent = false, $labelmilestone = false, $addlabel=false, $maxtickets=false, $showonly=false) {
 		$this->gitLab = new GitLab($gitLabUrl, $gitLabToken, $gitLabTokenIsAdmin);
 		$this->trac = new Trac($tracUrl);
 		$this->addLinkToOriginalTicket = $addLinkToOriginalTicket;
 		$this->userMapping = $userMapping;
+		$this->labelcomponent = $labelcomponent;
+        $this->labelmilestone = $labelmilestone;
+        $this->addlabel = trim($addlabel);
+        $this->maxtickets = $maxtickets;
+        $this->showonly = $showonly;
 	}
 
 	/**
@@ -41,9 +51,9 @@ class Migration
      * @param  string    $tracComponentName         Trac component to be migrated
      * @param  string    $gitLabProject             GitLab project in which the issues should be created
      */
-	public function migrateComponent($tracComponentName, $gitLabProject) {
-		$openTickets = $this->trac->listOpenTicketsForComponent($tracComponentName);
-		$this->migrate($openTickets, $gitLabProject);
+	public function migrateComponent($tracComponentName, $gitLabProject, $max=0) {
+		$openTickets = $this->trac->listOpenTicketsForComponent($tracComponentName, $max);
+		$this->migrate($openTickets, $gitLabProject, $tracComponentName);
 	}
 
 	/**
@@ -52,9 +62,12 @@ class Migration
      * @param  string    $tracQuery                 Trac query to be executed in order to find tickets
      * @param  string    $gitLabProject             GitLab project in which the issues should be created
      */
-	public function migrateQuery($tracQuery, $gitLabProject) {
+	public function migrateQuery($tracQuery, $gitLabProject, $max=0) {
+        if($max && !strstr($tracQuery, "&max=") === false) {
+            $tracQuery .= "&max={$max}";
+        }
 		$openTickets = $this->trac->listTicketsForQuery($tracQuery);
-		$this->migrate($openTickets, $gitLabProject);
+		$this->migrate($openTickets, $gitLabProject, $tracQuery);
 	}
 
 	/**
@@ -92,8 +105,11 @@ class Migration
 	 * @param  array     $openTickets               Array of Trac tickets to be migrated
 	 * @param  string    $gitLabProject             GitLab project in which the issues should be created
 	 */
-	private function migrate($openTickets, $gitLabProject) {
+	private function migrate($openTickets, $gitLabProject, $what) {
+        $count=0;
+        echo "Found ".count($openTickets)." tickets ({$what})\n";
 		foreach($openTickets as $ticket) {
+            $count++;
 			$originalTicketId = $ticket[0];
 			$title = $ticket[3]['summary'];
 			$description = $this->translateTracToMarkdown($ticket[3]['description']);
@@ -105,21 +121,47 @@ class Migration
 			$assigneeId = is_array($gitLabAssignee) ? $gitLabAssignee['id'] : null;
 			$creatorId = is_array($gitLabCreator) ? $gitLabCreator['id'] : null;
 			$labels = $ticket[3]['keywords'];
-			
-			$issue = $this->gitLab->createIssue($gitLabProject, $title, $description, $assigneeId, $creatorId, $labels);
+			if ($this->labelcomponent && isset($ticket[3]['component']) && !empty($ticket[3]['component'])) {
+				$labels .= (strlen($labels)?",":"") . $ticket[3]['component'];
+			}
+			if ($this->labelmilestone && isset($ticket[3]['milestone']) && !empty($ticket[3]['milestone'])) {
+				$labels .= (strlen($labels)?",":"") . $ticket[3]['milestone'];
+			}
+			if ($this->addlabel && !empty($this->addlabel)) {
+				$labels .= (strlen($labels)?",":"") . $this->addlabel;
+			}
 
-			echo 'Created a GitLab issue #' . $issue['iid'] . ' for Trac ticket #' . $originalTicketId . ' : ' . $this->gitLab->getUrl() . '/' . $gitLabProject . '/issues/' . $issue['iid'] . "\n";
+            $created_at = false;
+            if(isset($ticket[3]['time']) && isset($ticket[3]['time']['__jsonclass__']) && isset($ticket[3]['time']['__jsonclass__'][1])) {
+                $created_at = $ticket[3]['time']['__jsonclass__'][1];
+            }
+
+            if(!$this->showonly) {
+    			$issue = $this->gitLab->createIssue($gitLabProject, $title, $description, $assigneeId, $creatorId, $labels, $created_at);
+    			echo 'Created a GitLab issue #' . $issue['iid'] . ' for Trac ticket #' . $originalTicketId . ' : ' . $this->gitLab->getUrl() . '/' . $gitLabProject . '/issues/' . $issue['iid'] . "\n";
+            } else {
+                $comment_count = is_array($ticket[4])?count($ticket[4]):0;
+                echo "{$count} Trac ticket #{$originalTicketId} {$title} ({$comment_count} notes)\n";
+            }
 
 			// If there are comments on the ticket, create notes on the issue
-			if (is_array($ticket[4]) && count($ticket[4])) {
+			if (!$this->showonly && is_array($ticket[4]) && count($ticket[4])) {
 				foreach($ticket[4] as $comment) {
 					$commentAuthor = $this->getGitLabUser($comment['author']);
 					$commentAuthorId = is_array($commentAuthor) ? $commentAuthor['id'] : null;
-					$commentText = $this->translateTracToMarkdown($comment['text']);
-					$note = $this->gitLab->createNote($gitLabProject, $issue['id'], $commentText, $commentAuthorId);
+                    $commentText = $this->translateTracToMarkdown($comment['text']);
+                    $commentTime = false;
+                    if(isset($comment['time']) && isset($comment['time']['__jsonclass__']) && isset($comment['time']['__jsonclass__'][1])) {
+                        $commentTime = $comment['time']['__jsonclass__'][1];
+                    }
+					$note = $this->gitLab->createNote($gitLabProject, $issue['id'], $commentText, $commentAuthorId, $commentTime);
 				}
 				echo "\tAlso created " . count($ticket[4]) . " note(s)\n";
-			}
+            }
+
+            if($this->maxtickets && $this->maxtickets<=$count) {
+                return;
+            }
 		}
 	}
 
@@ -209,6 +251,3 @@ class Migration
 		return $text;
 	}
 }
-
-
-?>

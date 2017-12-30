@@ -8,7 +8,7 @@ This command line utility migrates Trac tickets to GitLab issues using Trac and 
 * Migrates open tickets of a single Trac component
 * Migrates any tickets matching a specific Trac query
 * Migrates comments on the tickets to notes on the issues
-* Keeps the original author and assignee when migrating (also for comments)
+* Keeps the original author, assignee and creating times when migrating (also for comments)
 * Supports mapping Trac usernames to GitLab usernames
 * Converts WikiFormatting into GitLab Flavoured Markdown
 * Optionally generates a link back to the original Ticket in the GitLab issue
@@ -16,7 +16,7 @@ This command line utility migrates Trac tickets to GitLab issues using Trac and 
 
 # Known limitations
 
-* The ticket creation date is not migrated (all issues get current date as creation date)
+* ~~The ticket creation date is not migrated (all issues get current date as creation date)~~
 * There is no deduplication (running the script n times with the same parameters will create n copies of each issue)
 * The GitLab API token user must have access to the target GitLab project
 * Migrating the original author requires a GitLab API token from an administrator user. Even then, the original author must have access to the target GitLab project. If they don't, ticket will be migrated with the token user (administrator) set as as the ticket's author.
@@ -37,7 +37,7 @@ All configuration options are passed as arguments on the command line. To get an
 ## As a pre-compiled phar
 
 ```bash
-curl -O http://apps.dachaz.net/trac-to-gitlab/bin/1.0.1/trac-to-gitlab.phar
+curl -O http://apps.dachaz.net/trac-to-gitlab/bin/1.0.2/trac-to-gitlab.phar
 php trac-to-gitlab.phar
 ```
 
