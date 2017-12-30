@@ -65,17 +65,17 @@ class GitLab
      * @param  string   $description  Description of the new issue
      * @param  int      $assigneeId   Numeric user id of the user asigned to the issue. Can be null.
      * @param  int      $authorId     Numeric user id of the user who created the issue. Only used in admin mode. Can be null.
-     * @param  array    $labels       Array of string labels to be attached to the issue. Analoguous to trac keywords.
+     * @param  string   $labels       Comma seperated string of labels to be attached to the issue. Analoguous to trac keywords.
      * @return  Gitlab\Model\Issue
 	 */
-	public function createIssue($projectId, $title, $description, $assigneeId, $authorId, $labels) {
+	public function createIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, $created_at=false) {
 		try {
 			// Try to add, potentially as an admin (SUDO authorId)
-			$issue = $this->doCreateIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, $this->isAdmin);
+			$issue = $this->doCreateIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, $this->isAdmin, $created_at);
 		} catch (\Gitlab\Exception\RuntimeException $e) {
 			// If adding has failed because of SUDO (author does not have access to the project), create an issue without SUDO (as the Admin user whose token is configured)
 			if ($this->isAdmin) {
-				$issue = $this->doCreateIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, false);
+				$issue = $this->doCreateIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, false, $created_at);
 			} else {
 				// If adding has failed for some other reason, propagate the exception back
 				throw $e;
@@ -93,14 +93,14 @@ class GitLab
      * @param  int      $authorId     Numeric user id of the user who created the issue. Only used in admin mode. Can be null.
      * @return  Gitlab\Model\Note
 	 */
-	public function createNote($projectId, $issueId, $text, $authorId) {
+	public function createNote($projectId, $issueId, $text, $authorId, $created_at=false) {
 		try {
 			// Try to add, potentially as an admin (SUDO authorId)
-			$note = $this->doCreateNote($projectId, $issueId, $text, $authorId, $this->isAdmin);
+			$note = $this->doCreateNote($projectId, $issueId, $text, $authorId, $this->isAdmin, $created_at);
 		} catch (\Gitlab\Exception\RuntimeException $e) {
 			// If adding has failed because of SUDO (author does not have access to the project), create an issue without SUDO (as the Admin user whose token is configured)
 			if ($this->isAdmin) {
-				$note = $this->doCreateNote($projectId, $issueId, $text, $authorId, false);
+				$note = $this->doCreateNote($projectId, $issueId, $text, $authorId, false, $created_at);
 			} else {
 				// If adding has failed for some other reason, propagate the exception back
 				throw $e;
@@ -110,13 +110,16 @@ class GitLab
 	}
 
 	// Actually creates the issue
-	private function doCreateIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, $isAdmin) {
+	private function doCreateIssue($projectId, $title, $description, $assigneeId, $authorId, $labels, $isAdmin, $created_at=false) {
 		$issueProperties = array(
 			'title' => $title,
 			'description' => $description,
 			'assignee_id' => $assigneeId,
 			'labels' => $labels
-		);
+        );
+        if($created_at !== false) {
+            $issueProperties['created_at'] = $created_at;
+        }
 		if ($isAdmin) {
 			$issueProperties['sudo'] = $authorId;
 		}
@@ -124,10 +127,13 @@ class GitLab
 	}
 
 	// Actually creates the note
-	private function doCreateNote($projectId, $issueId, $text, $authorId, $isAdmin) {
+	private function doCreateNote($projectId, $issueId, $text, $authorId, $isAdmin, $created_at=false) {
 		$noteProperties = array(
 			'body' => $text
-		);
+        );
+        if($created_at !== false) {
+            $noteProperties['created_at'] = $created_at;
+        }
 		if ($isAdmin) {
 			$noteProperties['sudo'] = $authorId;
 		}
@@ -142,4 +148,3 @@ class GitLab
 		return $this->url;
 	}
 }
-?>

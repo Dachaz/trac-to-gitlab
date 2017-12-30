@@ -21,7 +21,14 @@ $getopt = new Getopt(array(
     array('m', 'map', Getopt::OPTIONAL_ARGUMENT, 'Map of trac usernames to git usernames in the following format "tracUserA=gitUserX,tracUserB=gitUserY"'),
     array('a', 'admin', Getopt::NO_ARGUMENT, 'Indicates that the GitLab token is from an admin user and as such tries to migrate the ticket reporter as well. If the reporter is not part of the provided GitLab project, the reporter will be set to the Admin user owning the token.'),
     array('l', 'link', Getopt::NO_ARGUMENT, 'Create a link back to the original Trac ticket in the migrated issue'),
-    array('v', 'version', Getopt::NO_ARGUMENT, 'Just shows the version')
+    array('v', 'version', Getopt::NO_ARGUMENT, 'Just shows the version'),
+
+    // added my @mta59066
+    array(null, 'labelcomponent', Getopt::NO_ARGUMENT, 'Label component name in GitLab'),
+    array(null, 'labelmilestone', Getopt::NO_ARGUMENT, 'Label milestone in GitLab'),
+    array(null, 'addlabel', Getopt::REQUIRED_ARGUMENT, 'Add another custom label to all tickets'),
+    array(null, 'maxtickets', Getopt::REQUIRED_ARGUMENT, 'Maximum number of tickets to import'),
+    array(null, 'showonly', Getopt::NO_ARGUMENT, 'Show what will be done, do not execute')
 ));
 
 try {
@@ -45,21 +52,21 @@ try {
 			throw new UnexpectedValueException("Invalid format for 'map' option");
 		}
 
-    	foreach(explode(',', $getopt->getOption('map')) as $mapping) {
+    	foreach (explode(',', $getopt->getOption('map')) as $mapping) {
     		$mappingArray = explode('=', $mapping);
     		$userMapping[$mappingArray[0]] = $mappingArray[1];
     	}
     }
 
     // Actually migrate
-	$migration = new Migration($getopt->getOption('gitlab'), $getopt->getOption('token'), $getopt->getOption('admin'), $getopt->getOption('trac'), $getopt->getOption('link'), $userMapping);
+    $migration = new Migration($getopt->getOption('gitlab'), $getopt->getOption('token'), $getopt->getOption('admin'), $getopt->getOption('trac'), $getopt->getOption('link'), $userMapping, $getopt->getOption('labelcomponent'), $getopt->getOption('labelmilestone'), $getopt->getOption('addlabel'), $getopt->getOption('maxtickets'), $getopt->getOption('showonly'));
 	// If we have a component, migrate it
 	if (!is_null($getopt->getOption('component'))) {
-		$migration->migrateComponent($getopt->getOption('component'), $getopt->getOption('project'));
+		$migration->migrateComponent($getopt->getOption('component'), $getopt->getOption('project'), $getopt->getOption('maxtickets'));
 	}
 	// If we have a custom query, migrate it 
 	if (!is_null($getopt->getOption('query'))) {
-		$migration->migrateQuery($getopt->getOption('query'), $getopt->getOption('project'));
+		$migration->migrateQuery($getopt->getOption('query'), $getopt->getOption('project'), $getopt->getOption('maxtickets'));
 	}
 } catch (UnexpectedValueException $e) {
     echo "Error: ".$e->getMessage()."\n";
@@ -92,5 +99,3 @@ function getVersion() {
     $json = json_decode($str, true);
     return $json['version'];
 }
-
-?>

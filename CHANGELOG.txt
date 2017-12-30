@@ -1,3 +1,10 @@
+1.0.2
+    - Added support for adding component name as a label to the Gitlab side (--labelcomponent)
+    - Added support for adding milestone as a label to the Gitlab side (--labelmilestone)
+    - Added support for adding custom label(s) to Gitlab side during migration (--addlabel)
+    - Added support for setting maximum number of tickets on command line (--maxtickets)
+    - Added support for displaying what will be done and not executing (--showonly)
+
 1.0.1
 	- Added support for migrating comments on tickets
 
